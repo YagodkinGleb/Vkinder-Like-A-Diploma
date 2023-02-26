@@ -1,4 +1,4 @@
-from keyboard import sender, keyboard
+from keyboard import sender
 from main import *
 
 
@@ -12,13 +12,11 @@ for event in bot.longpoll.listen():
         elif request == 'начать поиск':
             bot.write_msg(user_id, 'Пару мгновений...')
             creating_database()
-            bot.find_similar_users(user_id)
+            bot.get_similar_users_dict(user_id, 0)                   
             bot.write_msg(user_id, f'Нашёл для тебя пару, жми на кнопку "Вперёд"')
         elif request == 'вперёд':
-            for i in line:
-                bot.find_persons(user_id, offset)
-                offset += 1
-                break
+            bot.find_persons(user_id, offset)
+            offset += 1
         elif request == 'выход':
             bot.process_exit(event.user_id)
         else:
