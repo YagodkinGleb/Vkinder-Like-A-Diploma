@@ -181,7 +181,6 @@ class VKinder:
         while not dicts_persons:
             offset_value = offset_value + 100
             self.get_similar_users_dict(user_id, offset_value)
-            dicts_persons = [d for d in self.profiles if d['id'] not in ids]
         profile = dicts_persons.pop(0)
         return {
             'name': profile['first_name'],
