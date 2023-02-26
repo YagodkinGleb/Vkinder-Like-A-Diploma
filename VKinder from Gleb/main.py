@@ -3,16 +3,18 @@ import vk_api
 import requests
 import datetime
 from vk_api.longpoll import VkLongPoll, VkEventType
-from config import user_token, comm_token, offset, line
+from config import offset
 from random import randrange
 from database import *
 
 
 class VKinder:
+
     def __init__(self):
         print('Bot was created')
         self.vk = vk_api.VkApi(token=comm_token)  # АВТОРИЗАЦИЯ СООБЩЕСТВА
         self.longpoll = VkLongPoll(self.vk)  # РАБОТА С СООБЩЕНИЯМИ
+        self.profiles = []
 
     def write_msg(self, user_id, message):
         """МЕТОД ДЛЯ ОТПРАВКИ СООБЩЕНИЙ"""
@@ -108,7 +110,6 @@ class VKinder:
         return [sex, age_or_age_low, age_or_age_high, city]
 
 
-    # @staticmethod
     def cities(self, user_id, city_name):
         """ПОЛУЧЕНИЕ ID ГОРОДА ПОЛЬЗОВАТЕЛЯ ПО НАЗВАНИЮ"""
         url = f'https://api.vk.com/method/database.getCities'
@@ -133,13 +134,13 @@ class VKinder:
                 found_city_id = i.get('id')
                 return int(found_city_id)
 
-
-    def find_similar_users(self, user_id, count=1000) -> list[dict]:
-        """ПОИСК ЧЕЛОВЕКА ПО ПОЛУЧЕННЫМ ДАННЫМ"""
+    def get_similar_users_dict(self, user_id, offset_value, count=100) -> list[dict]:
+        """ПОИСК ЛЮДЕЙ И ФОРМИРОВАНИЕ СПИСКА ПО ПОЛУЧЕННЫМ ДАННЫМ"""
         url = f'https://api.vk.com/method/users.search'
         user_data = self.get_user_data(user_id)
         params = {'access_token': user_token,
                   'v': '5.131',
+                  'offset': offset_value,
                   'sex': user_data[0],
                   'age_from': user_data[1],
                   'age_to': user_data[2],
@@ -156,8 +157,9 @@ class VKinder:
             print(f'Ошибка получения данных API {user_id} (по ранее полученным данным) '
                   f', проверьте валидность токенов, реализованных методов')
 
+
         list_1 = dict_1['items']
-        list_seen_users = []
+        list_similar_users = []
         for person_dict in list_1:
             if person_dict.get('is_closed') == False:
                 first_name = person_dict.get('first_name')
@@ -167,23 +169,51 @@ class VKinder:
 
             else:
                 continue
+            list_similar_users.append({'first_name': first_name, 'last_name': last_name, 'id': vk_id, 'link': vk_link})
 
-            list_seen_users.append({'first_name': first_name, 'last_name': last_name, 'id': vk_id, 'link': vk_link})
-        return list_seen_users
+        self.profiles = list_similar_users
 
-    def get_user_name_and_link(self, user_id, offset):
-        dicts_persons = (self.find_similar_users(user_id))
+    def get_user_name_and_link(self, user_id, offset_value):
+        dicts_persons = self.profiles
         ids = get_ids_from_db()
-        new_dicts_persons = [d for d in dicts_persons if d['id'] not in ids]
-        list_person = list(new_dicts_persons[offset].values())                                    # list_person[2] - id user # dicts_persons[index] - пользователь по индексу
-
-
+        dicts_persons = [d for d in dicts_persons if d['id'] not in ids]
+        print(dicts_persons)
+        while not dicts_persons:
+            offset_value = offset_value + 100
+            self.get_similar_users_dict(user_id, offset_value)
+            dicts_persons = [d for d in self.profiles if d['id'] not in ids]
+        profile = dicts_persons.pop(0)
         return {
-            'name': list_person[0],
-            'lastname': list_person[1],
-            'id': list_person[2],
-            'link': list_person[3],
+            'name': profile['first_name'],
+            'lastname': profile['last_name'],
+            'id': profile['id'],
+            'link': profile['link'],
         }
+
+
+    # def get_user_name_and_link(self, user_id, offset, line):
+    #     dicts_persons = self.profiles
+    #     ids = get_ids_from_db()
+    #     new_dicts_persons = [d for d in dicts_persons if d['id'] not in ids]
+    #     pprint(new_dicts_persons)
+    #     if new_dicts_persons:
+    #         list_person = list(new_dicts_persons[offset].values())
+    #         return {
+    #             'name': list_person[0],
+    #             'lastname': list_person[1],
+    #             'id': list_person[2],
+    #             'link': list_person[3],
+    #         }
+    #     else:
+    #         line = line + 10
+    #         self.get_similar_users_dict(user_id, line)
+    #         self.get_user_name_and_link(user_id, offset, line)
+
+    # def get_user_name_and_link(self, user_id, offset):
+    #     dicts_persons = (self.find_similar_users(user_id))
+    #     ids = get_ids_from_db()
+    #     new_dicts_persons = [d for d in dicts_persons if d['id'] not in ids]
+    #     list_person = list(new_dicts_persons[offset].values())
 
     def get_photos_id(self, user_id):
         """ПОЛУЧЕНИЕ ID ФОТОГРАФИЙ С РАНЖИРОВАНИЕМ В ОБРАТНОМ ПОРЯДКЕ"""
@@ -225,12 +255,13 @@ class VKinder:
                                          'random_id': 0})
 
 
-    def find_persons(self, user_id, offset):
-        user_name_and_link = self.get_user_name_and_link(user_id, offset)
-        insert_data_seen_users(user_name_and_link["id"])
+    def find_persons(self, user_id, offset_value):
+        user_name_and_link = self.get_user_name_and_link(user_id, offset_value)
+
         self.write_msg(user_id, f'{user_name_and_link["name"]} {user_name_and_link["lastname"]} \n{user_name_and_link["link"]}')
         photos = self.get_photos_id(user_name_and_link["id"])
         try:
+            insert_data_seen_users(user_name_and_link["id"])
             self.send_photos(user_id, user_name_and_link["id"], photos,  0)
             self.send_photos(user_id, user_name_and_link["id"], photos,  1)
             self.send_photos(user_id, user_name_and_link["id"], photos,  2)
