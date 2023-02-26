@@ -189,31 +189,6 @@ class VKinder:
             'link': profile['link'],
         }
 
-
-    # def get_user_name_and_link(self, user_id, offset, line):
-    #     dicts_persons = self.profiles
-    #     ids = get_ids_from_db()
-    #     new_dicts_persons = [d for d in dicts_persons if d['id'] not in ids]
-    #     pprint(new_dicts_persons)
-    #     if new_dicts_persons:
-    #         list_person = list(new_dicts_persons[offset].values())
-    #         return {
-    #             'name': list_person[0],
-    #             'lastname': list_person[1],
-    #             'id': list_person[2],
-    #             'link': list_person[3],
-    #         }
-    #     else:
-    #         line = line + 10
-    #         self.get_similar_users_dict(user_id, line)
-    #         self.get_user_name_and_link(user_id, offset, line)
-
-    # def get_user_name_and_link(self, user_id, offset):
-    #     dicts_persons = (self.find_similar_users(user_id))
-    #     ids = get_ids_from_db()
-    #     new_dicts_persons = [d for d in dicts_persons if d['id'] not in ids]
-    #     list_person = list(new_dicts_persons[offset].values())
-
     def get_photos_id(self, user_id):
         """ПОЛУЧЕНИЕ ID ФОТОГРАФИЙ С РАНЖИРОВАНИЕМ В ОБРАТНОМ ПОРЯДКЕ"""
         url = 'https://api.vk.com/method/photos.getAll'
